@@ -2,6 +2,25 @@
     <head>
         <title>Keyboard tester</title>
         <style type = "text/css">
+            #keypad {
+                display: none;
+                flex-wrap: wrap;
+                align-items: center;
+                text-align:center;
+                width: 600px;
+                margin: 5px;
+            }
+            div.letter, div.noletter {
+                width: 80px;
+                padding: 5px;
+                border: 1px dotted black;
+            }
+            div.letter.selected {
+                background: rgba(255, 255, 0, 0.3);
+            }
+            div.noletter.selected {
+                background: red;
+            }
             #keys {
                 display: flex;
                 flex-wrap: wrap;
@@ -37,24 +56,137 @@
     </head>
     <body>
         <button onclick = "document.getElementById('keys').innerHTML = '';" style="padding:5px;margin-left: 5px;">Clear</button>
+        <button onclick = "changeMode('print');" style="padding:5px;margin-left: 5px;">Print mode</button>
+        <button onclick = "changeMode('keypad');" style="padding:5px;margin-left: 5px;">Keypad mode</button>
         <div id = "keys"></div>
+        <div id = "keypad">
+            <div class = "letter" data-letter-Mode1="$Mode1" data-letter-Mode2="$Mode1">ABC</div>
+            <div class = "letter" data-letter-Mode1="$Mode2" data-letter-Mode2="$Mode2">123</div>
+            <div class = "noletter">&nbsp;</div>
+            <div class = "letter" data-letter-Mode1="-" data-letter-Mode2="-">-</div>
+            <div class = "letter" data-letter-Mode1=" " data-letter-Mode2=" ">SP</div>
+            <div class = "letter" data-letter-Mode1="BSP" data-letter-Mode2="BSP">BSP</div>
+            <!-------------------- ROW 2 ---------------------->
+            <div class = "letter" data-letter-Mode1="A" data-letter-Mode2="1">A/1</div>
+            <div class = "letter" data-letter-Mode1="B" data-letter-Mode2="2">B/2</div>
+            <div class = "letter" data-letter-Mode1="C" data-letter-Mode2="3">C/3</div>
+            <div class = "letter" data-letter-Mode1="D" data-letter-Mode2="4">D/4</div>
+            <div class = "letter" data-letter-Mode1="E" data-letter-Mode2="5">E/5</div>
+            <div class = "letter" data-letter-Mode1="F" data-letter-Mode2="6">F/6</div>
+            <!-------------------- ROW 3 ---------------------->
+            <div class = "letter" data-letter-Mode1="G" data-letter-Mode2="7">G/7</div>
+            <div class = "letter" data-letter-Mode1="H" data-letter-Mode2="8">H/8</div>
+            <div class = "letter" data-letter-Mode1="I" data-letter-Mode2="9">I/9</div>
+            <div class = "letter" data-letter-Mode1="J" data-letter-Mode2="0">J/0</div>
+            <div class = "letter" data-letter-Mode1="K">K</div>
+            <div class = "letter" data-letter-Mode1="L">L</div>
+            <!-------------------- ROW 4 ---------------------->
+            <div class = "letter" data-letter-Mode1="M">M</div>
+            <div class = "letter" data-letter-Mode1="N">N</div>
+            <div class = "letter" data-letter-Mode1="O">O</div>
+            <div class = "letter" data-letter-Mode1="P">P</div>
+            <div class = "letter" data-letter-Mode1="Q">Q</div>
+            <div class = "letter" data-letter-Mode1="R">R</div>
+            <!-------------------- ROW 5 ---------------------->
+            <div class = "letter" data-letter-Mode1="S">S</div>
+            <div class = "letter" data-letter-Mode1="T">T</div>
+            <div class = "letter" data-letter-Mode1="U">U</div>
+            <div class = "letter" data-letter-Mode1="V">V</div>
+            <div class = "letter" data-letter-Mode1="W">W</div>
+            <div class = "letter" data-letter-Mode1="X">X</div>
+            <!-------------------- ROW 6 ---------------------->
+            <div class = "letter" data-letter-Mode1="Y">Y</div>
+            <div class = "letter" data-letter-Mode1="Z">Z</div>
+            <div class = "letter" data-letter-Mode1="Å">Å</div>
+            <div class = "letter" data-letter-Mode1="Ä">Ä</div>
+            <div class = "letter" data-letter-Mode1="Ö">Ö</div>
+            <div class = "noletter">&nbsp;</div>
+
+            <div class = "output" id = "keypad-output"></div>
+        </div>
 
         <script type = "text/javascript">
             var lastTime = undefined;
+            var mode = "print";
+            var keypadPos = [0, 1];
+            var keypadMode = "Mode1";
+            changeMode("keypad");
 
             document.onkeydown = (e) => {
-                addKey(e.key, true);
+                handleKey(e.key, true);
             };
             
             document.onkeyup = (e) => {
-                addKey(e.key, false);
+                handleKey(e.key, false);
             };
+
+            function changeMode(newMode) {
+                mode = newMode;
+                document.getElementById("keys").style.display = (mode === "print" ? "flex": "none");
+                document.getElementById("keypad").style.display = (mode === "keypad" ? "flex": "none");
+                if (mode === "keypad") {
+                    // Reset position
+                    selectPosition(0, 1);
+                }
+            }
+
+            function handleKey(key, pressed) {
+                if (mode === "print") {
+                    addKey(key, pressed);
+                }
+                else if (mode === "keypad") {
+                    updateKeyPad(key, pressed);
+                }
+            }
+
+            function updateKeyPad(key, pressed) {
+                if (pressed) {
+                    if (key === "ArrowRight") {
+                        selectPosition(keypadPos[0]+1, keypadPos[1]);
+                    } else if (key === "ArrowLeft") {
+                        selectPosition(keypadPos[0]-1, keypadPos[1]);
+                    } else if (key === "ArrowUp") {
+                        selectPosition(keypadPos[0], keypadPos[1]-1);
+                    } else if (key === "ArrowDown") {
+                        selectPosition(keypadPos[0], keypadPos[1]+1);
+                    } else if (key === "Enter") {
+                        const keyEl = document.getElementById("keypad").getElementsByClassName("selected")[0];
+                        const attr = `data-letter-${keypadMode}`;
+                        if (keyEl.hasAttribute(attr)) {
+                            const key = keyEl.getAttribute(attr);
+                            const output = document.getElementById("keypad-output");
+                            if (key === "BSP") {
+                                output.innerHTML = output.innerHTML.substring(0, output.innerHTML.length-1);
+                            } else if (key.startsWith("$")) {
+                                keypadMode = key.substring(1);
+                            } else {
+                                output.innerHTML += key;
+                            }
+                        }
+                    } else {
+                        console.log(`Can't handle key ${key}`);
+                    }
+                }
+            }
+
+            function selectPosition(x, y) {
+                const oldIndex = getPosition(keypadPos[0], keypadPos[1]);
+                const oldEl = document.getElementById("keypad").getElementsByTagName("div")[oldIndex];
+                oldEl.className = oldEl.className.replaceAll(" selected", "");
+                document.getElementById("keypad").getElementsByTagName("div")[getPosition(x, y)].className += " selected";
+                keypadPos = [x, y];
+            }
+
+            function getPosition(x, y) {
+                const index = x + 6*y;
+                return (index >= 2 && index <= 4 ? index + 1 : index); // Hack: Compensate for noletter node
+            }
 
             function getKeyContent(key) {
                 return key;
             }
 
-            function addKey(key, directionIsDown) {
+            function addKey(key, pressed) {
                 let elapsedTime = "N/A";
                 const currentTime = window.performance.now();
                 if (lastTime !== undefined) {
@@ -73,10 +205,10 @@
                 lastTime = currentTime;
 
                 let el = document.createElement("div");
-                el.className += `key ${directionIsDown ? 'down' : 'up'}`;
+                el.className += `key ${pressed ? 'down' : 'up'}`;
                 let title = document.createElement("div");
-                title.className = directionIsDown ? 'title down' : 'title up';
-                title.innerHTML = directionIsDown ? 'Pressed' : 'Released';
+                title.className = pressed ? 'title down' : 'title up';
+                title.innerHTML = pressed ? 'Pressed' : 'Released';
                 let content = document.createElement("div");
                 content.className = "content";
                 content.innerHTML = getKeyContent(key);

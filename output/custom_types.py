@@ -60,5 +60,6 @@ class Mode:
     redirects: Dict[str, str]
     inhibits: List[str]
     pages: Optional[List[KeyboardLocation]]
+    start: Tuple[int, int]
     on_led: int = -1
     off_led: int = -1

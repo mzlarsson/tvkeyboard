@@ -24,6 +24,7 @@
         {"x": 0, "y": 0},
         {"x": 1, "y": 0}
       ],
+      "start": {"x": 0, "y": 1},
       "keybinds": [
         { "key": "-", "x": 2, "y": 0, "page": 0 },
         { "key": "space", "x": 3, "y": 0, "page": 0 },
@@ -80,6 +81,7 @@
       "redirects": {},
       "inhibits": [],
       "pages": [],
+      "start": {"x": 0, "y": 0},
       "keybinds": [
         { "key": "a", "x": 0, "y": 0 },
         { "key": "b", "x": 1, "y": 0 },

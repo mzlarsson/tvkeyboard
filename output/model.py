@@ -1,5 +1,5 @@
 import json
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from time import sleep
 from custom_types import KeyBind, KeyboardLocation, KeyboardMessage, Mode
 from led import setup_led_pin, set_led_pin_state, set_leds_enabled, is_leds_enabled
@@ -7,6 +7,7 @@ from led import setup_led_pin, set_led_pin_state, set_leds_enabled, is_leds_enab
 class Model:
 
     def __init__(self, send_message):
+        self._prev_message_keys = []
         self._send_message = send_message
         self._current_mode = 0
         self._modes = self._load_configuration()
@@ -33,7 +34,8 @@ class Model:
             redirects = global_redirects | mode.get("redirects", {})
             inhibits = global_inhibits + mode.get("inhibits", [])
             pages = [KeyboardLocation(**location) for location in mode.get("pages", [])]
-            mode = Mode(mode["name"], keybinds, preredirects, redirects, inhibits, pages, mode["on_led"], mode["off_led"])
+            start = mode.get("start", {"x": 0, "y": 0})
+            mode = Mode(mode["name"], keybinds, preredirects, redirects, inhibits, pages, (start["x"], start["y"]), mode["on_led"], mode["off_led"])
             result.append(mode)
             
             if mode.on_led > 0:
@@ -56,6 +58,9 @@ class Model:
             set_led_pin_state(self._modes[self._current_mode].on_led, True)
         if self._modes[self._current_mode].off_led > 0:
             set_led_pin_state(self._modes[self._current_mode].off_led, False)
+        # Fix start position
+        self._current_x = self._get_start_position()[0]
+        self._current_y = self._get_start_position()[1]
         print(f"Entered mode {self._modes[self._current_mode].name}")
 
     def _toggle_leds_enabled(self) -> None:
@@ -78,41 +83,41 @@ class Model:
     def _get_preredirect(self, key: str) -> str:
         return self._modes[self._current_mode].preredirects.get(key, key)
 
-    def _move_to(self, x: int, y: int, enter_on_arrival: bool) -> None:
-        if self._current_x == x and self._current_y == y and enter_on_arrival:
-            # Special case: We are already there. Just press enter.
-            self._send_message(KeyboardMessage(0x00, ["enter"]))
-            sleep(0.02)
-            self._send_message(KeyboardMessage(0x00, []))
-            return
+    def _get_start_position(self) -> Tuple[int, int]:
+        return self._modes[self._current_mode].start
 
+    def _press_keys(self, keys_arr):
+       self._send_message(KeyboardMessage(0x00, keys_arr))
+       sleep(0.02)
+       self._send_message(KeyboardMessage(0x00, []))
+       sleep(0.02)
+
+    def _press_enter(self):
+        self._press_keys(["enter"])
+
+    def _move_to(self, x: int, y: int, enter_on_arrival: bool) -> None:
         while self._current_x != x or self._current_y != y:
-            # Prepare message
-            msg = KeyboardMessage(0x00, [])
+            pressed_keys = []
             if self._current_y != y:
-                msg.keys.append("down" if self._current_y < y else "up")
+                pressed_keys.append("down" if self._current_y < y else "up")
                 self._current_y += 1 if self._current_y < y else -1
             if self._current_x != x:
-                msg.keys.append("right" if self._current_x < x else "left")
+                pressed_keys.append("right" if self._current_x < x else "left")
                 self._current_x += 1 if self._current_x < x else -1
-            
-            if self._current_x == x and self._current_y == y and enter_on_arrival:
-                msg.keys.append("enter")
-            # Send message
-            self._send_message(msg)
-            # Wait short while
-            sleep(0.02)
-            # Release keys
-            self._send_message(KeyboardMessage(0x00, []))
-            # Wait for release to go through
-            sleep(0.02)
+            self._press_keys(pressed_keys)
+
+        if enter_on_arrival:
+            self._press_enter()
 
     def _handle_keybind(self, keybind: KeyBind) -> None:
-        page_btn = self._get_page_button(keybind.page)
-        if page_btn:
-            self._move_to(page_btn.x, page_btn.y, True)
-        self._move_to(keybind.x, keybind.y, True)
-        self._move_to(0, 0, False)
+        try:
+            page_btn = self._get_page_button(keybind.page)
+            if page_btn:
+                self._move_to(page_btn.x, page_btn.y, True)
+            self._move_to(keybind.x, keybind.y, True)
+            self._move_to(*self._get_start_position(), False)
+        except Exception as e:
+            print(f"Error on move: {e}")
 
     def handle_key_change(self, msg: KeyboardMessage) -> None:
         if msg.has_ctrl() and len(msg.keys) == 1 and msg.keys[0] == "m":
@@ -122,16 +127,26 @@ class Model:
         elif msg.has_ctrl() and len(msg.keys) == 1 and msg.keys[0] == "p":
             self._toggle_leds_enabled()
 
+        unhandled_keys = []
+        has_been_handled = False
         msg.keys = list(map(self._get_preredirect, msg.keys))
-        if len(msg.keys) == 1:
+        for key in msg.keys:
+            if key in self._prev_message_keys:
+                # User just kept pressing this key AND pressed/released another one
+                continue
             # Some key is pressed
-            keybind = self._get_keybind(msg.keys[0])
+            keybind = self._get_keybind(key)
             if keybind:
                 # Handle keybind
                 self._handle_keybind(keybind)
-                return
+                has_been_handled = True
+            else:
+                unhandled_keys.append(key)
+
+        self._prev_message_keys = msg.keys
             
-        # Check for inhibits and redirects
-        msg.keys = list(map(self._get_redirect, filter(self._not_inhibited, msg.keys)))
-        self._send_message(msg)
+        if not has_been_handled or len(unhandled_keys) > 0:
+            # Check for inhibits and redirects
+            msg.keys = list(map(self._get_redirect, filter(self._not_inhibited, unhandled_keys)))
+            self._send_message(msg)
         
