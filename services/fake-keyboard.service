@@ -1,0 +1,12 @@
+[Unit]
+Description=Run python application which listens to keyboard data on serial and sends out on hidg0
+After=usb-gadget.service
+
+[Service]
+Type=simple
+User=nano
+ExecStart=/usr/bin/python3 /home/nano/tvkeyboard/main.py --no-logging
+WorkingDirectory=/home/nano/tvkeyboard/
+
+[Install]
+WantedBy=local-fs.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run python application which sends key presses over serial
+After=syslog.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/python3 /home/nano/tvkeyboard/main.py --no-logging
+
+[Install]
+WantedBy=local-fs.target

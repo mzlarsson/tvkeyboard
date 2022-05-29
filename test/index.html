@@ -1,0 +1,93 @@
+<html>
+    <head>
+        <title>Keyboard tester</title>
+        <style type = "text/css">
+            #keys {
+                display: flex;
+                flex-wrap: wrap;
+            }
+            div.key {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding: 5px;
+                border: 1px solid black;
+                margin: 5px;
+                min-width: 100px;
+            }
+            div.key.down {
+                border-color: #801080;
+                color: #801080;
+            }
+            div.key.up {
+                border-color: #209970;
+                color: #209970;
+            }
+            div.title {
+                flex: 1;
+            }
+            div.content {
+                flex: 2;
+                font-size: 2em;
+            }
+            div.time {
+                flex: 1;
+            }
+        </style>
+    </head>
+    <body>
+        <button onclick = "document.getElementById('keys').innerHTML = '';" style="padding:5px;margin-left: 5px;">Clear</button>
+        <div id = "keys"></div>
+
+        <script type = "text/javascript">
+            var lastTime = undefined;
+
+            document.onkeydown = (e) => {
+                addKey(e.key, true);
+            };
+            
+            document.onkeyup = (e) => {
+                addKey(e.key, false);
+            };
+
+            function getKeyContent(key) {
+                return key;
+            }
+
+            function addKey(key, directionIsDown) {
+                let elapsedTime = "N/A";
+                const currentTime = window.performance.now();
+                if (lastTime !== undefined) {
+                    let diff = currentTime - lastTime;
+                    let unit = "ms";
+                    if (diff > 60000) {
+                        diff = diff / 60000;
+                        unit = "m";
+                    }
+                    else if (diff > 1000) {
+                        diff = diff / 1000;
+                        unit = "s";
+                    }
+                    elapsedTime = `${Math.round((diff)*100)/100}${unit}`;
+                }
+                lastTime = currentTime;
+
+                let el = document.createElement("div");
+                el.className += `key ${directionIsDown ? 'down' : 'up'}`;
+                let title = document.createElement("div");
+                title.className = directionIsDown ? 'title down' : 'title up';
+                title.innerHTML = directionIsDown ? 'Pressed' : 'Released';
+                let content = document.createElement("div");
+                content.className = "content";
+                content.innerHTML = getKeyContent(key);
+                let time = document.createElement("div");
+                time.className = "time";
+                time.innerHTML = elapsedTime;
+                el.appendChild(title);
+                el.appendChild(content);
+                el.appendChild(time);
+                document.getElementById("keys").appendChild(el);
+            }
+        </script>
+    </body>
+</html>
